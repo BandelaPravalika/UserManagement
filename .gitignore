@@ -1,3 +1,7 @@
-/target/
-/.metadata/
-/uploads/
+.classpath
+.project
+.factorypath
+.settings/
+.metadata/
+target/
+uploads/
