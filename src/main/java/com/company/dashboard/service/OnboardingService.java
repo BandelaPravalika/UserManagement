@@ -13,42 +13,28 @@ import com.company.dashboard.response.OnboardingResponseDTO;
 
 public interface OnboardingService {
 
-    /*
-     * SUBMIT EMPLOYEE ONBOARDING FORM
-     * Handles complete onboarding submission including file uploads
-     */
     OnboardingResponseDTO submitOnboarding(
             OnboardingRequestDTO dto,
             Long employeeId,
             Map<String, MultipartFile> files
     ) throws IOException;
 
-
-    /*
-     * FETCH ONBOARDING FORM BY ID
-     */
     Optional<EmployeeForm> findOnboardingById(Long id);
 
-
-    /*
-     * HR REVIEW PROCESS
-     * Approve / Reject onboarding after document verification
-     */
-    void submitReview(
-            Long employeeId,
-            String status,
-            String remarks,
-            List<String> rejectedDocuments
-    );
-
-
-    /*
-     * REJECT SPECIFIC DOCUMENT
-     */
     void rejectDocument(
             Long employeeId,
             String entityType,
             Long entityId,
             String remarks
     );
+
+    void submitReview(
+            Long employeeId,
+            String status,
+            String remarks
+    );
+
+    List<String> getRejectedDocuments(Long employeeId);
+
+    void clearRejectedDocuments(Long employeeId);
 }

@@ -18,7 +18,7 @@ import com.company.dashboard.service.DeptService;
 
 @RestController
 @RequestMapping("/api/departments")
-@CrossOrigin(origins = "*")
+
 public class DeptController {
 
     private final DeptService deptService;
@@ -61,3 +61,4 @@ public class DeptController {
     }
 
 }
+

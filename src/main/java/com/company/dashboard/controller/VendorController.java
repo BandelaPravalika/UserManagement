@@ -19,7 +19,7 @@ import com.company.dashboard.service.VendorService;
 
 @RestController
 @RequestMapping("/api/vendors")
-@CrossOrigin(origins = "*")
+
 public class VendorController {
 
     private final VendorService vendorService;
@@ -66,3 +66,4 @@ public class VendorController {
         return ResponseEntity.noContent().build();
     }
 }
+

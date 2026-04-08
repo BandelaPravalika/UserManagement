@@ -13,9 +13,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.company.dashboard.service.EmployeeCodeService;
-import com.company.dashboard.service.EmailService;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +28,6 @@ import com.company.dashboard.model.Experience;
 import com.company.dashboard.model.IdentityProof;
 import com.company.dashboard.model.Internship;
 import com.company.dashboard.model.ProofStatus;
-import com.company.dashboard.model.Employee.EmployeeStatus;
 import com.company.dashboard.repository.BankDetailsRepository;
 import com.company.dashboard.repository.EmployeeFormRepository;
 import com.company.dashboard.repository.EmployeeRepository;
@@ -43,6 +39,8 @@ import com.company.dashboard.response.ExperienceDTO;
 import com.company.dashboard.response.InternshipDTO;
 import com.company.dashboard.response.OnboardingRequestDTO;
 import com.company.dashboard.response.OnboardingResponseDTO;
+import com.company.dashboard.service.EmailService;
+import com.company.dashboard.service.EmployeeCodeService;
 import com.company.dashboard.service.OnboardingService;
 
 @Service
@@ -377,8 +375,7 @@ public class OnboardingServiceImpl implements OnboardingService {
     @Transactional
     public void submitReview(Long employeeId,
                              String status,
-                             String remarks,
-                             List<String> rejectedDocuments) {
+                             String remarks) {
 
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
@@ -393,22 +390,28 @@ public class OnboardingServiceImpl implements OnboardingService {
                 employee.setActivatedAt(LocalDateTime.now());
                 employeeRepository.save(employee);
 
-                // 🔹 Schedule Employee ID generation after 1 minute
                 employeeCodeService.scheduleEmployeeCode(employee);
-                System.out.println("Employee scheduled for code generation: " + employee.getEmail());
-                }
+            }
 
             emailService.sendMail(
-                employee.getEmail(),
-                "Onboarding Approved",
-                "Hi " + employee.getFullName() + ",\n\n" +
-                "Your onboarding has been approved successfully.\n\n" +
-                "Welcome onboard!\n\nHR Department"
+                    employee.getEmail(),
+                    "Onboarding Approved",
+                    "Hi " + employee.getFullName() + ",\n\n" +
+                    "Your onboarding has been approved successfully.\n\n" +
+                    "Welcome onboard!\n\nHR Department"
             );
 
-        } else if ("REJECTED".equalsIgnoreCase(status)) {
+        }
+
+        else if ("REJECTED".equalsIgnoreCase(status)) {
+
+            List<String> rejectedDocs = employee.getRejectedDocuments();
+
+            if (rejectedDocs == null || rejectedDocs.isEmpty()) {
+                throw new RuntimeException("No rejected documents found");
+            }
+
             employee.setStatus(Employee.EmployeeStatus.ONBOARDING);
-            employee.setRejectedDocuments(rejectedDocuments);
 
             String newToken = UUID.randomUUID().toString();
             employee.setOnboardingToken(newToken);
@@ -417,64 +420,108 @@ public class OnboardingServiceImpl implements OnboardingService {
                     employee.getEmail(),
                     employee.getFullName(),
                     newToken,
-                    String.join(", ", rejectedDocuments)
+                    String.join(", ", rejectedDocs)
             );
 
-        } else if ("UNDER_REVIEW".equalsIgnoreCase(status)) {
+            clearRejectedDocuments(employeeId);
+        }
+
+        else if ("UNDER_REVIEW".equalsIgnoreCase(status)) {
             employee.setStatus(Employee.EmployeeStatus.UNDER_REVIEW);
-        } else {
-            throw new IllegalArgumentException("Invalid status value");
+        }
+
+        else {
+            throw new IllegalArgumentException("Invalid status");
         }
 
         employeeRepository.save(employee);
     }
     
     @Override
-    public void rejectDocument(Long employeeId, String entityType, Long entityId, String remarks) {
-        if (employeeId == null || entityType == null || entityId == null) {
-            throw new IllegalArgumentException("employeeId, entityType and entityId are required");
-        }
+    @Transactional
+    public void rejectDocument(Long employeeId,
+                               String entityType,
+                               Long entityId,
+                               String remarks) {
 
         Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found: " + employeeId));
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        // --- Add to review remarks ---
-        String rejectionInfo = String.format(
-                "Rejected document: %s (ID: %d) - %s",
-                entityType, entityId, remarks != null ? remarks : "No reason provided"
-        );
+        String documentName = mapEntityTypeToDocument(entityType);
 
-        String currentRemarks = employee.getReviewRemarks();
-        employee.setReviewRemarks(
-                currentRemarks == null || currentRemarks.trim().isEmpty()
-                        ? rejectionInfo
-                        : currentRemarks + "\n" + rejectionInfo
-        );
-
-        employee.setReviewedAt(LocalDateTime.now());
-        employee.setStatus(EmployeeStatus.ONBOARDING);
-
-        // --- Keep track of rejected documents ---
         List<String> rejectedDocs = employee.getRejectedDocuments();
-        if (rejectedDocs == null) rejectedDocs = new ArrayList<>();
-        rejectedDocs.add(entityType);
+
+        if (rejectedDocs == null) {
+            rejectedDocs = new ArrayList<>();
+        }
+
+        if (!rejectedDocs.contains(documentName)) {
+            rejectedDocs.add(documentName);
+        }
+
         employee.setRejectedDocuments(rejectedDocs);
 
-        // --- Generate new onboarding token for re-upload ---
-        String newToken = UUID.randomUUID().toString();
-        employee.setOnboardingToken(newToken);
+        employeeRepository.save(employee);
+    }
+    private String mapEntityTypeToDocument(String entityType) {
+
+        if (entityType == null) {
+            return "Unknown Document";
+        }
+
+        switch (entityType.toLowerCase()) {
+
+            case "education":
+                return "Education Certificate";
+
+            case "experience":
+                return "Experience Documents";
+
+            case "bank":
+                return "Bank Proof";
+
+            case "pan":
+                return "PAN Card";
+
+            case "aadhaar":
+                return "Aadhaar Card";
+
+            case "passport":
+                return "Passport";
+
+            case "voter":
+                return "Voter ID";
+
+            case "identity":
+                return "Identity Proof";
+
+            default:
+                return entityType;
+        }
+    }
+    
+    @Override
+    public List<String> getRejectedDocuments(Long employeeId) {
+
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        if (employee.getRejectedDocuments() == null) {
+            return new ArrayList<>();
+        }
+
+        return employee.getRejectedDocuments();
+    }
+    
+    @Override
+    public void clearRejectedDocuments(Long employeeId) {
+
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        employee.setRejectedDocuments(new ArrayList<>());
 
         employeeRepository.save(employee);
-
-        // --- Send rejection email with onboarding link ---
-        emailService.sendRejectedOnboardingMail(
-                employee.getEmail(),
-                employee.getFullName(),
-                newToken,
-                String.join(", ", rejectedDocs)
-        );
-
-        System.out.println("[REJECT DOCUMENT] " + rejectionInfo + " for employee " + employeeId);
     }
 
 }

@@ -15,7 +15,7 @@ import com.company.dashboard.service.OnboardingTokenService;
 
 @RestController
 @RequestMapping("/api/onboardingtoken")
-@CrossOrigin(origins = "*")
+
 public class OnboardingTokenController {
 
     private final OnboardingTokenService tokenService;
@@ -53,3 +53,4 @@ public class OnboardingTokenController {
 
     
 }
+

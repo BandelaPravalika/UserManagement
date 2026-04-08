@@ -31,7 +31,7 @@ import com.company.dashboard.service.AssetExchangeService;
 
 @RestController
 @RequestMapping("/api/assets")
-@CrossOrigin(origins = "*")
+
 public class AssetExchangeController {
 
     private final AssetExchangeRepository assetExchangeRepository;

@@ -60,3 +60,4 @@ public class AuditLogController {
         return auditLogService.getLogsFiltered(tableName, action, performedBy, start, end);
     }
 }
+

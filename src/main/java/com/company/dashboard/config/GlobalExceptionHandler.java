@@ -30,6 +30,27 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
+    // Catch-DataIntegrityViolationException
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Object> handleDataIntegrityViolationException(org.springframework.dao.DataIntegrityViolationException ex, WebRequest request) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", "Data Integrity Error");
+
+        String message = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+
+        if (message != null && message.contains("Duplicate entry")) {
+            body.put("message", "Data already exists. Please use a unique value.");
+        } else {
+            body.put("message", "Database constraint violation.");
+        }
+        
+        body.put("path", request.getDescription(false));
+
+        return new ResponseEntity<>(body, HttpStatus.CONFLICT);
+    }
+
     // Catch-all for unexpected errors (still 500, but with better message)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleAllExceptions(Exception ex, WebRequest request) {

@@ -1,25 +1,37 @@
 package com.company.dashboard.response;
 
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ReviewRequest {
 
     private Long employeeId;
     private String status;
     private String remarks;
-    private List<String> rejectedDocuments;
 
-    public Long getEmployeeId() { return employeeId; }
-    public void setEmployeeId(Long employeeId) { this.employeeId = employeeId; }
+    public Long getEmployeeId() {
+        return employeeId;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public void setEmployeeId(Long employeeId) {
+        this.employeeId = employeeId;
+    }
 
-    public String getRemarks() { return remarks; }
-    public void setRemarks(String remarks) { this.remarks = remarks; }
+    public String getStatus() {
+        return status;
+    }
 
-    public List<String> getRejectedDocuments() { return rejectedDocuments; }
-    public void setRejectedDocuments(List<String> rejectedDocuments) {
-        this.rejectedDocuments = rejectedDocuments;
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
     }
 }

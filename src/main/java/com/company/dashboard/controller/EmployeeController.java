@@ -25,7 +25,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/employees")
-@CrossOrigin(origins = "*")
+
 public class EmployeeController {
 
 	private final EmployeeService employeeService;
@@ -36,14 +36,14 @@ public class EmployeeController {
 		this.emailService = emailService;
 	}
 
-	@PostMapping("/employees")
+//	@PostMapping(value="/employees")
+	@PostMapping
 	public ResponseEntity<Employee> create(@RequestBody @Valid Employee employee) {
 		Employee created = employeeService.createEmployee(employee);
 		return ResponseEntity.created(URI.create("/api/employees/" + created.getId())).body(created);
 	}
 
-	// In your EmployeeController class
-
+	
 	@GetMapping("/{id}")
 	public ResponseEntity<EmployeeWithOnboardingDTO> getEmployee(@PathVariable Long id) {
 		EmployeeWithOnboardingDTO dto = employeeService.getCompleteEmployee(id);
@@ -90,3 +90,4 @@ public class EmployeeController {
 	}
 
 }
+

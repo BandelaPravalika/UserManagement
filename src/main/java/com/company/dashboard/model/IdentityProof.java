@@ -2,6 +2,8 @@ package com.company.dashboard.model;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Pattern;
 
@@ -29,6 +31,7 @@ public class IdentityProof {
     private String photoFilePath;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnore
     @JoinColumn(name = "employee_form_id", nullable = false)
     private EmployeeForm employeeForm;
 

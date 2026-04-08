@@ -29,7 +29,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @RestController
 @RequestMapping("/api/onboarding")
-@CrossOrigin("*")
+
 //@CrossOrigin(origins = "http://localhost:5173")
 public class OnboardingController {
 
@@ -260,32 +260,41 @@ public class OnboardingController {
     // ───────── REVIEW ONBOARDING ─────────
     @PostMapping("/review")
     public ResponseEntity<String> reviewOnboarding(@RequestBody ReviewRequest request) {
+
         try {
+
             onboardingService.submitReview(
                     request.getEmployeeId(),
                     request.getStatus(),
-                    request.getRemarks(),
-                    request.getRejectedDocuments()
+                    request.getRemarks()
             );
+
             return ResponseEntity.ok("Review processed successfully");
+
         } catch (Exception e) {
+
             return ResponseEntity.internalServerError()
                     .body("Review failed: " + e.getMessage());
         }
-    }
+    } 
 
     // ───────── REJECT DOCUMENT ─────────
     @PostMapping("/reject-document")
     public ResponseEntity<String> rejectDocument(@RequestBody RejectDocumentRequest request) {
+
         try {
+
             onboardingService.rejectDocument(
                     request.getEmployeeId(),
                     request.getEntityType(),
                     request.getEntityId(),
                     request.getRemarks()
             );
+
             return ResponseEntity.ok("Document rejected successfully");
+
         } catch (Exception e) {
+
             return ResponseEntity.internalServerError()
                     .body("Failed to reject document: " + e.getMessage());
         }

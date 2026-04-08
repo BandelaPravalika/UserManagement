@@ -2,12 +2,12 @@ package com.company.dashboard.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
@@ -16,7 +16,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -93,12 +92,19 @@ public class Employee {
     private LocalDateTime activatedAt;
 
     @ElementCollection
-    @CollectionTable(name = "employee_rejected_documents", 
-                     joinColumns = @JoinColumn(name = "employee_id"))
-    @Column(name = "document_name")
-    private List<String> rejectedDocuments;
+    private List<String> rejectedDocuments = new ArrayList<>();
 
-    @Column(length = 1000)
+    private Boolean onboardingRejected = false;
+    
+
+    public Boolean getOnboardingRejected() {
+		return onboardingRejected;
+	}
+
+	public void setOnboardingRejected(Boolean onboardingRejected) {
+		this.onboardingRejected = onboardingRejected;
+	}
+	@Column(length = 1000)
     private String reviewRemarks;
 
     private LocalDateTime reviewedAt;
@@ -197,5 +203,8 @@ public class Employee {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    
+    
 
 }

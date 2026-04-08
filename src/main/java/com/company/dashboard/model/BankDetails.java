@@ -3,6 +3,8 @@ package com.company.dashboard.model;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -53,6 +55,7 @@ public class BankDetails {
 
     @OneToOne
     @JoinColumn(name = "employee_form_id", nullable = false, unique = true)
+    @JsonIgnore
     private EmployeeForm employeeForm;
 
     @Enumerated(EnumType.STRING)

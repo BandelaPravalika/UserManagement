@@ -21,7 +21,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/entities")
-@CrossOrigin(origins = "*")
+
 public class EntityMasterController {
 
     @Autowired
@@ -55,3 +55,4 @@ public class EntityMasterController {
         return entityMasterService.deleteEntity(id);
     }
 }
+

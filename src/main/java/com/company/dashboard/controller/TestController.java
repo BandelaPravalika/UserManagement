@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/test")
-@CrossOrigin(origins = "*")
+
 public class TestController {
 
     @PostMapping("/echo")
@@ -19,3 +19,4 @@ public class TestController {
         return body;
     }
 }
+

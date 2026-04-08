@@ -19,7 +19,7 @@ import com.company.dashboard.service.RoleService;
 
 @RestController
 @RequestMapping("/api/roles")
-@CrossOrigin(origins = "*")
+
 public class RoleController {
 
     @Autowired
@@ -52,3 +52,4 @@ public class RoleController {
         return roleService.deleteRole(id);
     }
 }
+
