@@ -6,6 +6,7 @@ import com.company.dashboard.model.Education;
 import com.company.dashboard.model.EducationType;
 import com.company.dashboard.model.EmployeeForm;
 import com.company.dashboard.model.ProofStatus;
+import com.company.dashboard.util.FileUrlUtil;
 
 public class EducationDTO {
 
@@ -35,8 +36,8 @@ public static EducationDTO fromEntity(Education e) {
     dto.setHallTicketNumber(e.getHallTicketNumber());
     dto.setPassoutYear(e.getPassoutYear());
     dto.setPercentage(e.getPercentage());
-    dto.setCertificateFilePath(e.getCertificateFilePath());
-    dto.setMarksMemoFilePath(e.getMarksMemoFilePath());
+    dto.setCertificateFilePath(FileUrlUtil.ensurePrefix(e.getCertificateFilePath()));
+    dto.setMarksMemoFilePath(FileUrlUtil.ensurePrefix(e.getMarksMemoFilePath()));
     dto.setStatus(e.getStatus());
     dto.setRejectionReason(e.getRejectionReason());
     dto.setReviewedAt(e.getReviewedAt());

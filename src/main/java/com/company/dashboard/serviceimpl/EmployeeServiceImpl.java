@@ -7,7 +7,7 @@ import java.util.Map;
 
 import org.hibernate.Hibernate;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,20 +28,17 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final EmailService mailService;
     private final OnboardingTokenService onboardingTokenService;
-    private final ThreadPoolTaskScheduler taskScheduler;
     private final EmployeeCodeService employeeCodeService;
 
     public EmployeeServiceImpl(
             EmployeeRepository employeeRepository,
             EmailService mailService,
             OnboardingTokenService onboardingTokenService,
-            ThreadPoolTaskScheduler taskScheduler,
             EmployeeCodeService employeeCodeService) {
 
         this.employeeRepository = employeeRepository;
         this.mailService = mailService;
         this.onboardingTokenService = onboardingTokenService;
-        this.taskScheduler = taskScheduler;
         this.employeeCodeService = employeeCodeService;
     }
 
@@ -49,7 +46,11 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public Employee createEmployee(Employee employee) {
 
+        // Default state: ONBOARDING, empId = null, activatedAt = null
+        // empId will only be assigned 1 minute AFTER the employee is explicitly activated
         employee.setStatus(EmployeeStatus.ONBOARDING);
+        employee.setEmpId(null);
+        employee.setActivatedAt(null);
 
         Employee saved = employeeRepository.save(employee);
 
@@ -162,7 +163,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Transactional(readOnly = true)
     public List<Employee> getAllEmployees() {
         return employeeRepository.findAll();
-    }
+    } 
 
     // ---------------- DEACTIVATE ----------------
     @Override
@@ -185,10 +186,17 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new RuntimeException("Employee must be UNDER_REVIEW to activate");
         }
 
+        LocalDateTime now = LocalDateTime.now();
         employee.setStatus(EmployeeStatus.ACTIVE);
-        employee.setActivatedAt(LocalDateTime.now());
+        employee.setActivatedAt(now);
+        // empId remains null — it will be auto-set by EmployeeCodeScheduler exactly 1 min after activatedAt
+        Employee saved = employeeRepository.save(employee);
 
-        return employeeRepository.save(employee);
+        System.out.println("[EmployeeServiceImpl] Employee ACTIVATED: " + saved.getFullName()
+                + " | activatedAt=" + now
+                + " | empId will be generated after " + now.plusSeconds(60));
+
+        return saved;
     }
 
     // ---------------- EMPLOYEE CODE GENERATION ----------------
@@ -199,7 +207,7 @@ public class EmployeeServiceImpl implements EmployeeService {
             return "Employee ID already exists";
         }
 
-        // Schedule async generation
+        // Schedule async generation after 60 seconds
         employeeCodeService.scheduleEmployeeCode(employee);
 
         return "Employee ID generation scheduled successfully";
@@ -207,31 +215,26 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public void generateEmployeeCodeAfterDelay(Long employeeId) {
-
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         if (employee.getEmpId() == null) {
-            String code = generateEmployeeCode(employee);
-            employee.setEmpId(code);
-            employeeRepository.save(employee);
+            employeeCodeService.scheduleEmployeeCode(employee);
         }
     }
 
     @Async
     @Override
     public void generateEmployeeCodeAfterDelayAsync(Long employeeId) {
-
         try {
             Thread.sleep(60000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-
         generateEmployeeCodeAfterDelay(employeeId);
     }
 
-    // ---------------- VERIFY TOKEN ----------------
+
     @Override
     public String verifyToken(String token) {
 

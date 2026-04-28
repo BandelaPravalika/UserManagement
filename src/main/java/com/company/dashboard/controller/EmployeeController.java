@@ -85,8 +85,15 @@ public class EmployeeController {
 
 	@PatchMapping("/{id}/activate")
 	public ResponseEntity<Employee> activateEmployee(@PathVariable Long id) {
-		Employee updated = employeeService.updateEmployeeStatusToActive(id);
+		Employee updated = employeeService.activateEmployee(id);
 		return ResponseEntity.ok(updated);
+	}
+
+	// Manually trigger code generation for already-active employees
+	@PostMapping("/{id}/generate-code")
+	public ResponseEntity<String> generateCode(@PathVariable Long id) {
+		employeeService.generateEmployeeCodeAfterDelay(id);
+		return ResponseEntity.ok("Employee code generation scheduled. Check back in 60 seconds.");
 	}
 
 }

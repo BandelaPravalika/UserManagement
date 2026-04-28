@@ -1,6 +1,7 @@
 package com.company.dashboard.repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,6 +58,22 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     );
 
     List<Employee> findByStatusAndEmpIdIsNullAndActivatedAtIsNotNull(EmployeeStatus status);
+
+    // Used by scheduler: only employees activated at least 60 seconds ago
+    @Query("""
+        SELECT e FROM Employee e
+        WHERE e.status = :status
+        AND e.empId IS NULL
+        AND e.activatedAt IS NOT NULL
+        AND e.activatedAt <= :cutoff
+    """)
+    List<Employee> findEligibleForCodeGeneration(
+            @Param("status") EmployeeStatus status,
+            @Param("cutoff") LocalDateTime cutoff
+    );
+
+    // Fallback: find ALL active employees without a code (regardless of activatedAt)
+    List<Employee> findByStatusAndEmpIdIsNull(EmployeeStatus status);
 
     @Query("""
         SELECT e FROM Employee e

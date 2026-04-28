@@ -55,15 +55,12 @@ public class MailServiceImpl implements EmailService {
     public void sendRejectedOnboardingMail(String to, String name, String token, String rejectedFields) {
         String link = frontendBaseUrl + "/onboarding?token=" + token;
 
-        String subject = "Action Required: Resubmit Rejected Onboarding Documents";
+        String subject = "Document Rejection – Action Required";
         String body = "Hi " + name + ",\n\n" +
-                "Some of your uploaded onboarding documents have been rejected.\n\n" +
-                "Rejected documents:\n" + rejectedFields + "\n\n" +
-                "Click the link below to resubmit your details. All previously accepted fields are retained.\n" +
+                "The following documents were rejected:\n\n" +
+                rejectedFields + "\n" +
+                "Please re-upload only the above documents via the link below:\n" +
                 link + "\n\n" +
-                "Important:\n" +
-                "- Only the rejected fields need to be updated.\n" +
-                "- Do not share this link with anyone.\n\n" +
                 "Thank you,\nHR Department";
 
         sendMail(to, subject, body);

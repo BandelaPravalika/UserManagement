@@ -1,17 +1,9 @@
 package com.company.dashboard.controller;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.company.dashboard.model.Employee;
 import com.company.dashboard.model.EmployeeForm;
 import com.company.dashboard.repository.EmployeeRepository;
+import com.company.dashboard.util.FolderMappingUtil;
 import com.company.dashboard.response.*;
 import com.company.dashboard.service.FileStorageService;
 import com.company.dashboard.service.OnboardingService;
@@ -29,61 +22,23 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @RestController
 @RequestMapping("/api/onboarding")
-
-//@CrossOrigin(origins = "http://localhost:5173")
 public class OnboardingController {
 
     private final OnboardingService onboardingService;
     private final OnboardingTokenService tokenService;
     private final EmployeeRepository employeeRepo;
     private final FileStorageService fileStorageService;
-    private final Path baseUploadDir;
-
-    @Value("${app.file.base-url:http://localhost:8090}")
-    private String baseUrl;
 
     public OnboardingController(
             OnboardingService onboardingService,
             OnboardingTokenService tokenService,
             EmployeeRepository employeeRepo,
-            FileStorageService fileStorageService,
-            @Value("${onboarding.upload.dir:C:/onboard/uploads}") String uploadDirPath
-    ) throws IOException {
+            FileStorageService fileStorageService
+    ) {
         this.onboardingService = onboardingService;
         this.tokenService = tokenService;
         this.employeeRepo = employeeRepo;
         this.fileStorageService = fileStorageService;
-
-        this.baseUploadDir = Paths.get(uploadDirPath).toAbsolutePath().normalize();
-        if (!Files.exists(baseUploadDir)) Files.createDirectories(baseUploadDir);
-    }
-
-    // ───────── SERVE FILE ─────────
-    @GetMapping("/files/{path:.+}")
-    public ResponseEntity<Resource> serveFile(@PathVariable String path) throws IOException {
-        Path file = baseUploadDir.resolve(path).normalize();
-        if (!file.startsWith(baseUploadDir)) return ResponseEntity.badRequest().build();
-        if (!Files.exists(file)) return ResponseEntity.notFound().build();
-
-        Resource resource = new UrlResource(file.toUri());
-        String contentType = Files.probeContentType(file);
-        if (contentType == null) contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
-
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
-                .body(resource);
-    }
-
-    // ───────── LIST FILES ─────────
-    @GetMapping("/files")
-    public List<String> listFiles() throws IOException {
-        if (!Files.exists(baseUploadDir)) return List.of();
-        return Files.walk(baseUploadDir)
-                .filter(Files::isRegularFile)
-                .map(path -> baseUploadDir.relativize(path).toString().replace("\\", "/"))
-                .map(path -> "/api/onboarding/files/" + path)
-                .toList();
     }
 
     // ───────── SUBMIT ONBOARDING ─────────
@@ -101,6 +56,9 @@ public class OnboardingController {
             Long employeeId = tokenService.validateToken(token);
             if (employeeId == null) return ResponseEntity.badRequest().body("Invalid token");
 
+            Employee employee = employeeRepo.findById(employeeId)
+                    .orElseThrow(() -> new RuntimeException("Employee not found"));
+
             // ───────── HANDLE FILES ─────────
             Map<String, MultipartFile> files = new HashMap<>();
             if (multipartFiles != null) {
@@ -109,181 +67,161 @@ public class OnboardingController {
                 });
             }
 
-            files.forEach((key, file) -> mapFileToDTO(dto, key, file, employeeId));
+            // Upload each file to Cloudinary; savedPath is now a full https:// URL
+            files.forEach((key, file) -> mapFileToDTO(dto, key, file, employeeId, employee.getFullName()));
 
-            // ───────── SUBMIT TO SERVICE ─────────
-            OnboardingResponseDTO result = onboardingService.submitOnboarding(dto, employeeId, files);
+            // ───────── SUBMIT TO SERVICE (Integrated Transaction) ─────────
+            OnboardingResponseDTO result = onboardingService.submitOnboarding(dto, employeeId, files, token);
 
-            employeeRepo.findById(employeeId).ifPresent(emp -> {
-                emp.setStatus(Employee.EmployeeStatus.UNDER_REVIEW);
-                employeeRepo.save(emp);
-            });
-
-            tokenService.markUsed(token);
             return ResponseEntity.ok(result);
 
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            String msg = e.getMessage();
+            if (msg != null && (msg.toLowerCase().contains("token") || msg.toLowerCase().contains("expired") || msg.toLowerCase().contains("used"))) {
+                System.err.println("⚠️ [ONBOARDING SUBMIT BAD REQUEST] " + msg);
+                return ResponseEntity.badRequest().body("Submission failed: " + msg);
+            }
+
+            System.err.println("❌ [ONBOARDING SUBMIT ERROR]");
             e.printStackTrace();
             return ResponseEntity.internalServerError()
                     .body("Submission failed: " + e.getMessage());
+
+        } catch (Exception e) {
+            System.err.println("❌ [ONBOARDING SUBMIT CRITICAL FAILED]");
+            e.printStackTrace();
+
+            java.io.StringWriter sw = new java.io.StringWriter();
+            e.printStackTrace(new java.io.PrintWriter(sw));
+
+            return ResponseEntity.internalServerError()
+                    .body("Submission failed: " + e.getMessage() + " | Stack trace: " + sw.toString());
         }
     }
 
     // ───────── HELPER METHOD TO MAP FILES TO DTO ─────────
-    private void mapFileToDTO(OnboardingRequestDTO dto, String key, MultipartFile file, Long employeeId) {
-        String savedPath = fileStorageService.saveFile(file, employeeId, key);
+    private void mapFileToDTO(OnboardingRequestDTO dto, String key, MultipartFile file, Long employeeId, String employeeName) {
+        String k = key.toLowerCase();
 
-        switch (key) {
+        String folderName = FolderMappingUtil.getFolderNameForKey(k);
+        String baseFileName = FolderMappingUtil.getFileNameForKey(k);
 
-            case "bank":
-                if (dto.getBankDetails() == null) dto.setBankDetails(new BankDetailsDTO());
-                dto.getBankDetails().setDocumentFilePath(savedPath);
-                break;
+        // Upload to Cloudinary → returns full secure_url
+        String savedPath = fileStorageService.saveFile(file, employeeId, employeeName, folderName, baseFileName);
+        System.out.println("✅ Cloudinary upload [" + file.getOriginalFilename() + "] key=[" + key + "] url=" + savedPath);
 
-            case "photo":
-                if (dto.getPhotoProof() == null) dto.setPhotoProof(new IdentityProofDTO());
-                dto.getPhotoProof().setPhotoFilePath(savedPath);
-                break;
+        if (k.contains("bank")) {
+            if (dto.getBankDetails() == null) dto.setBankDetails(new BankDetailsDTO());
+            dto.getBankDetails().setDocumentFilePath(savedPath);
+        } else if (k.contains("photo")) {
+            if (dto.getPhotoProof() == null) dto.setPhotoProof(new IdentityProofDTO());
+            dto.getPhotoProof().setPhotoFilePath(savedPath);
+        } else if (k.contains("pan")) {
+            if (dto.getPanProof() == null) dto.setPanProof(new IdentityProofDTO());
+            dto.getPanProof().setPanFilePath(savedPath);
+        } else if (k.contains("aadhaar") || k.contains("aadhar")) {
+            if (dto.getAadharProof() == null) dto.setAadharProof(new IdentityProofDTO());
+            dto.getAadharProof().setAadhaarFilePath(savedPath);
+        } else if (k.contains("voter")) {
+            if (dto.getVoterProof() == null) dto.setVoterProof(new IdentityProofDTO());
+            dto.getVoterProof().setVoterIdFilePath(savedPath);
+        } else if (k.contains("passport")) {
+            if (dto.getPassportProof() == null) dto.setPassportProof(new IdentityProofDTO());
+            dto.getPassportProof().setPassportFilePath(savedPath);
+        } else if (k.contains("ssc")) {
+            if (dto.getSsc() == null) dto.setSsc(new EducationDTO());
+            dto.getSsc().setCertificateFilePath(savedPath);
+        } else if (k.contains("internship")) {
+            mapIndexedWorkFiles(dto, k, savedPath, true);
+        } else if (k.contains("experience")) {
+            mapIndexedWorkFiles(dto, k, savedPath, false);
+        } else if (k.contains("inter")) {
+            if (dto.getIntermediate() == null) dto.setIntermediate(new EducationDTO());
+            dto.getIntermediate().setCertificateFilePath(savedPath);
+        } else {
+            mapIndexedEducationFiles(dto, k, savedPath);
+        }
+    }
 
-            case "pan":
-                if (dto.getPanProof() == null) dto.setPanProof(new IdentityProofDTO());
-                dto.getPanProof().setPanFilePath(savedPath);
-                break;
+    // ───────── INDEXED INTERNSHIP / EXPERIENCE FILES ─────────
+    private void mapIndexedWorkFiles(OnboardingRequestDTO dto, String k, String savedPath, boolean isInternship) {
+        try {
+            int index = 0;
+            String numberOnly = k.replaceAll("[^0-9]", "");
+            if (!numberOnly.isEmpty()) index = Integer.parseInt(numberOnly);
 
-            case "aadhaar":
-                if (dto.getAadharProof() == null) dto.setAadharProof(new IdentityProofDTO());
-                dto.getAadharProof().setAadhaarFilePath(savedPath);
-                break;
-
-            case "voter":
-                if (dto.getVoterProof() == null) dto.setVoterProof(new IdentityProofDTO());
-                dto.getVoterProof().setVoterIdFilePath(savedPath);
-                break;
-
-            case "passport":
-                if (dto.getPassportProof() == null) dto.setPassportProof(new IdentityProofDTO());
-                dto.getPassportProof().setPassportFilePath(savedPath);
-                break;
-
-            // EDUCATION
-            case "ssc_certificate":
-                if (dto.getSsc() == null) dto.setSsc(new EducationDTO());
-                dto.getSsc().setCertificateFilePath(savedPath);
-                break;
-
-            case "inter_certificate":
-                if (dto.getIntermediate() == null) dto.setIntermediate(new EducationDTO());
-                dto.getIntermediate().setCertificateFilePath(savedPath);
-                break;
-
-            // INTERNSHIP FILES
-            case "internship_offer_letter":
-                if (dto.getInternships() != null && !dto.getInternships().isEmpty()) {
-                    dto.getInternships().get(0).setOfferLetterPath(savedPath);
+            if (isInternship && dto.getInternships() != null) {
+                if (index < dto.getInternships().size()) {
+                    InternshipDTO i = dto.getInternships().get(index);
+                    if (k.contains("offer")) i.setOfferLetterPath(savedPath);
+                    else i.setExperienceCertificatePath(savedPath);
                 }
-                break;
-
-            case "internship_experience_certificate":
-                if (dto.getInternships() != null && !dto.getInternships().isEmpty()) {
-                    dto.getInternships().get(0).setExperienceCertificatePath(savedPath);
+            } else if (!isInternship && dto.getWorkExperiences() != null) {
+                if (index < dto.getWorkExperiences().size()) {
+                    ExperienceDTO e = dto.getWorkExperiences().get(index);
+                    if (k.contains("offer")) e.setOfferLetterPath(savedPath);
+                    else if (k.contains("reliev")) e.setRelievingLetterPath(savedPath);
+                    else if (k.contains("payslip")) e.setPayslipsPath(savedPath);
+                    else e.setExperienceCertificatePath(savedPath);
                 }
-                break;
-
-            // WORK EXPERIENCE FILES
-            case "experience_offer_letter":
-                if (dto.getWorkExperiences() != null && !dto.getWorkExperiences().isEmpty()) {
-                    dto.getWorkExperiences().get(0).setOfferLetterPath(savedPath);
-                }
-                break;
-
-            case "experience_relieving_letter":
-                if (dto.getWorkExperiences() != null && !dto.getWorkExperiences().isEmpty()) {
-                    dto.getWorkExperiences().get(0).setRelievingLetterPath(savedPath);
-                }
-                break;
-
-            case "experience_payslips":
-                if (dto.getWorkExperiences() != null && !dto.getWorkExperiences().isEmpty()) {
-                    dto.getWorkExperiences().get(0).setPayslipsPath(savedPath);
-                }
-                break;
-
-            case "experience_certificate":
-                if (dto.getWorkExperiences() != null && !dto.getWorkExperiences().isEmpty()) {
-                    dto.getWorkExperiences().get(0).setExperienceCertificatePath(savedPath);
-                }
-                break;
-
-            default:
-                mapIndexedEducationFiles(dto, key, savedPath);
-                break;
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to map work file key: " + k);
         }
     }
 
     // ───────── INDEXED EDUCATION FILES ─────────
-    private void mapIndexedEducationFiles(OnboardingRequestDTO dto, String key, String savedPath) {
+    private void mapIndexedEducationFiles(OnboardingRequestDTO dto, String k, String savedPath) {
         try {
+            int index = 0;
+            String numberOnly = k.replaceAll("[^0-9]", "");
+            if (!numberOnly.isEmpty()) index = Integer.parseInt(numberOnly);
 
-            if (key.startsWith("grad_certificate_") && dto.getGraduations() != null) {
-                int index = Integer.parseInt(key.substring("grad_certificate_".length()));
-                if (index >= 0 && index < dto.getGraduations().size()) {
-                    dto.getGraduations().get(index).setCertificateFilePath(savedPath);
-                }
-            }
-
-            // FIX ADDED HERE (GRAD MARKS MEMO SUPPORT)
-            if (key.startsWith("grad_marks_") && dto.getGraduations() != null) {
-                int index = Integer.parseInt(key.substring("grad_marks_".length()));
-                if (index >= 0 && index < dto.getGraduations().size()) {
-                    dto.getGraduations().get(index).setMarksMemoFilePath(savedPath);
-                }
-            }
-
-            if (key.startsWith("postgrad_certificate_") && dto.getPostGraduations() != null) {
-                int index = Integer.parseInt(key.substring("postgrad_certificate_".length()));
-                if (index >= 0 && index < dto.getPostGraduations().size()) {
+            if (k.contains("postgrad") && dto.getPostGraduations() != null) {
+                if (index < dto.getPostGraduations().size()) {
                     dto.getPostGraduations().get(index).setCertificateFilePath(savedPath);
                 }
-            }
-
-            if (key.startsWith("certification_certificate_file_") && dto.getOtherCertificates() != null) {
-                int index = Integer.parseInt(key.substring("certification_certificate_file_".length()));
-                if (index >= 0 && index < dto.getOtherCertificates().size()) {
+            } else if (k.contains("grad") && dto.getGraduations() != null) {
+                if (index < dto.getGraduations().size()) {
+                    if (k.contains("mark")) dto.getGraduations().get(index).setMarksMemoFilePath(savedPath);
+                    else dto.getGraduations().get(index).setCertificateFilePath(savedPath);
+                }
+            } else if (k.contains("certific") && dto.getOtherCertificates() != null) {
+                if (index < dto.getOtherCertificates().size()) {
                     dto.getOtherCertificates().get(index).setCertificateFilePath(savedPath);
                 }
             }
-
-        } catch (NumberFormatException e) {
+        } catch (Exception e) {
+            System.err.println("Failed to map indexed file key: " + k);
         }
     }
 
     // ───────── REVIEW ONBOARDING ─────────
     @PostMapping("/review")
-    public ResponseEntity<String> reviewOnboarding(@RequestBody ReviewRequest request) {
-
+    public ResponseEntity<?> reviewOnboarding(@RequestBody ReviewRequest request) {
         try {
-
-            onboardingService.submitReview(
+            List<Map<String, String>> result = onboardingService.submitReview(
                     request.getEmployeeId(),
                     request.getStatus(),
                     request.getRemarks()
             );
 
+            if ("REJECTED".equalsIgnoreCase(request.getStatus())) {
+                return ResponseEntity.ok(result);
+            }
+
             return ResponseEntity.ok("Review processed successfully");
 
         } catch (Exception e) {
-
             return ResponseEntity.internalServerError()
                     .body("Review failed: " + e.getMessage());
         }
-    } 
+    }
 
     // ───────── REJECT DOCUMENT ─────────
     @PostMapping("/reject-document")
     public ResponseEntity<String> rejectDocument(@RequestBody RejectDocumentRequest request) {
-
         try {
-
             onboardingService.rejectDocument(
                     request.getEmployeeId(),
                     request.getEntityType(),
@@ -294,7 +232,6 @@ public class OnboardingController {
             return ResponseEntity.ok("Document rejected successfully");
 
         } catch (Exception e) {
-
             return ResponseEntity.internalServerError()
                     .body("Failed to reject document: " + e.getMessage());
         }
@@ -308,10 +245,9 @@ public class OnboardingController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
-    
+
     @GetMapping("/detail")
     public ResponseEntity<?> getOnboardingByToken(@RequestParam String token) {
-
         Long employeeId = tokenService.validateToken(token);
 
         if (employeeId == null) {
@@ -323,6 +259,7 @@ public class OnboardingController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
     // ───────── ENTITY → RESPONSE ─────────
     private OnboardingResponseDTO mapToResponse(EmployeeForm form) {
         return OnboardingResponseDTO.fromEntity(form);

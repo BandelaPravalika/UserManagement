@@ -24,3 +24,4 @@ Thumbs.db
 
 # Uploads (if runtime generated)
 uploads/
+.env

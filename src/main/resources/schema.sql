@@ -1,0 +1,2 @@
+-- schema.sql intentionally left empty.
+-- All table creation is handled by Hibernate (ddl-auto=update).

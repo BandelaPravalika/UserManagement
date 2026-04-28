@@ -16,7 +16,8 @@ public interface OnboardingService {
     OnboardingResponseDTO submitOnboarding(
             OnboardingRequestDTO dto,
             Long employeeId,
-            Map<String, MultipartFile> files
+            Map<String, MultipartFile> files,
+            String token
     ) throws IOException;
 
     Optional<EmployeeForm> findOnboardingById(Long id);
@@ -28,7 +29,7 @@ public interface OnboardingService {
             String remarks
     );
 
-    void submitReview(
+    List<Map<String, String>> submitReview(
             Long employeeId,
             String status,
             String remarks

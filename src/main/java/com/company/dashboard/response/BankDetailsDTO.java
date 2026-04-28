@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import com.company.dashboard.model.BankDetails;
 import com.company.dashboard.model.BankDocumentType;
 import com.company.dashboard.model.ProofStatus;
+import com.company.dashboard.util.FileUrlUtil;
 
 public class BankDetailsDTO {
 
@@ -35,7 +36,7 @@ public class BankDetailsDTO {
         dto.setIfscCode(bank.getIfscCode());
         dto.setUpiId(bank.getUpiId());
         dto.setDocumentType(bank.getDocumentType());
-        dto.setDocumentFilePath(bank.getDocumentFilePath()); // String path
+        dto.setDocumentFilePath(FileUrlUtil.ensurePrefix(bank.getDocumentFilePath())); // String path
         dto.setStatus(bank.getStatus());
         dto.setRejectionReason(bank.getRejectionReason());
         dto.setReviewedAt(bank.getReviewedAt());

@@ -6,6 +6,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.company.dashboard.model.Certification;
 import com.company.dashboard.model.ProofStatus;
+import com.company.dashboard.util.FileUrlUtil;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class CertificationDTO {
@@ -28,7 +29,7 @@ public class CertificationDTO {
         dto.setId(cert.getId());
         dto.setInstituteName(cert.getInstituteName());
         dto.setCertificateNumber(cert.getCertificateNumber());
-        dto.setCertificateFilePath(cert.getCertificateFilePath()); // only string path
+        dto.setCertificateFilePath(FileUrlUtil.ensurePrefix(cert.getCertificateFilePath())); // only string path
         dto.setStatus(cert.getStatus());
         dto.setRejectionReason(cert.getRejectionReason());
         dto.setReviewedAt(cert.getReviewedAt());

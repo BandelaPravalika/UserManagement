@@ -1,67 +1,64 @@
 package com.company.dashboard.serviceimpl;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.UUID;
-
-import org.springframework.beans.factory.annotation.Value;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
+import com.company.dashboard.service.FileStorageService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.company.dashboard.service.FileStorageService;
+import java.util.Map;
 
 @Service
 public class FileStorageServiceImpl implements FileStorageService {
 
-    @Value("${onboarding.upload.dir:C:/onboard/uploads}")
-    private String uploadBaseDir;
+    @Autowired
+    private Cloudinary cloudinary;
 
     /**
-     * Getter for upload base directory
-     */
-    public String getUploadBaseDir() {
-        return uploadBaseDir;
-    }
-
-    /**
-     * Save the file to the folder and return the relative URL
+     * Uploads a file to Cloudinary and returns the secure URL.
      *
-     * @param file       MultipartFile uploaded
-     * @param employeeId Employee ID for naming
-     * @param folderName Folder name like "photo", "pan"
-     * @return Relative path like /uploads/photo/employeeId_uuid_filename.ext
+     * @param file         MultipartFile uploaded
+     * @param employeeId   Employee ID for folder naming
+     * @param employeeName Employee full name for folder naming
+     * @param folderName   Logical folder name (e.g. "photo", "pan")
+     * @param baseFileName Preferred public_id filename
+     * @return Full Cloudinary secure_url (https://res.cloudinary.com/...)
      */
     @Override
-    public String saveFile(MultipartFile file, Long employeeId, String folderName) {
+    public String saveFile(MultipartFile file, Long employeeId, String employeeName, String folderName, String baseFileName) {
         if (file == null || file.isEmpty()) {
             return null;
         }
 
         try {
-            // Ensure OS-independent folder path
-            Path folderPath = Paths.get(uploadBaseDir, folderName).toAbsolutePath().normalize();
-            Files.createDirectories(folderPath); // Create folder if it doesn't exist
+            // Build folder path: onboarding/<EmployeeName_ID>/<folderName>
+            String sanitizedName = (employeeName != null ? employeeName : "Unknown")
+                    .replaceAll("[^a-zA-Z0-9]", "");
+            String folder = "onboarding/" + sanitizedName + "_" + employeeId + "/" + folderName;
 
-            // Sanitize original filename
-            String originalFileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
-            String sanitizedFileName = originalFileName.replaceAll("[^a-zA-Z0-9\\.\\-_]", "_");
+            // Build public_id (filename without extension — Cloudinary handles extension)
+            String publicId = (baseFileName != null && !baseFileName.trim().isEmpty())
+                    ? baseFileName.trim().replaceAll("[^a-zA-Z0-9\\-_]", "_")
+                    : "file_" + System.currentTimeMillis();
 
-            // Generate unique filename using employeeId and UUID
-            String uniqueFileName = employeeId + "_" + UUID.randomUUID() + "_" + sanitizedFileName;
+            @SuppressWarnings("rawtypes")
+            Map uploadResult = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap(
+                            "folder", folder,
+                            "public_id", publicId,
+                            "resource_type", "auto"  // supports images AND PDFs
+                    )
+            );
 
-            Path targetPath = folderPath.resolve(uniqueFileName);
+            String secureUrl = uploadResult.get("secure_url").toString();
+            System.out.println("✅ Cloudinary upload success: " + secureUrl);
+            return secureUrl;
 
-            // Copy file to target path (overwrite if exists)
-            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-
-            // Return relative URL
-            return "/uploads/" + folderName + "/" + uniqueFileName;
-
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to save file: " + file.getOriginalFilename(), e);
+        } catch (Exception e) {
+            System.err.println("❌ Cloudinary upload failed: " + e.getMessage());
+            throw new RuntimeException("File upload to Cloudinary failed: " + e.getMessage(), e);
         }
     }
 }

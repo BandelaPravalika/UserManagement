@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -91,7 +91,8 @@ public class Employee {
 
     private LocalDateTime activatedAt;
 
-    @ElementCollection
+    @Convert(converter = com.company.dashboard.util.StringListConverter.class)
+    @Column(name = "rejected_documents", columnDefinition = "TEXT")
     private List<String> rejectedDocuments = new ArrayList<>();
 
     private Boolean onboardingRejected = false;

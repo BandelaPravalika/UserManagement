@@ -43,7 +43,8 @@ public class BankDetails {
     @Column(name = "ifsc_code", nullable = false)
     private String ifscCode;
 
-    @Column(name = "upi_id")
+    @NotBlank
+    @Column(name = "upi_id", nullable = false)
     private String upiId;
 
     @Enumerated(EnumType.STRING)

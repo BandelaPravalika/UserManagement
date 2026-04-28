@@ -4,7 +4,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface FileStorageService {
 
-	 String getUploadBaseDir();
-	String saveFile(MultipartFile file, Long employeeId, String folderName);
+    String saveFile(MultipartFile file, Long employeeId, String employeeName, String folderName, String baseFileName);
 }
 

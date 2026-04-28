@@ -6,6 +6,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.company.dashboard.model.IdentityProof;
 import com.company.dashboard.model.ProofStatus;
+import com.company.dashboard.util.FileUrlUtil;
 
 public class IdentityProofDTO {
 
@@ -45,13 +46,12 @@ public class IdentityProofDTO {
         dto.setPanNumber(proof.getPanNumber());
         dto.setAadhaarNumber(proof.getAadhaarNumber());
 
-        // Assign paths from entity
-        dto.setPanFilePath(proof.getPanFilePath());
-        dto.setAadhaarFilePath(proof.getAadhaarFilePath());
-        dto.setPassportFilePath(proof.getPassportFilePath());
-        dto.setVoterIdFilePath(proof.getVoterIdFilePath());
-        dto.setPhotoFilePath(proof.getPhotoFilePath());
-//        dto.setPassbookFilePath(proof.getPassbookFilePath());
+        // Assign paths from entity with safe prefixing
+        dto.setPanFilePath(FileUrlUtil.ensurePrefix(proof.getPanFilePath()));
+        dto.setAadhaarFilePath(FileUrlUtil.ensurePrefix(proof.getAadhaarFilePath()));
+        dto.setPassportFilePath(FileUrlUtil.ensurePrefix(proof.getPassportFilePath()));
+        dto.setVoterIdFilePath(FileUrlUtil.ensurePrefix(proof.getVoterIdFilePath()));
+        dto.setPhotoFilePath(FileUrlUtil.ensurePrefix(proof.getPhotoFilePath()));
 
         dto.setStatus(proof.getStatus());
         dto.setRejectionReason(proof.getRejectionReason());

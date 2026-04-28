@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.company.dashboard.model.Internship;
 import com.company.dashboard.model.ProofStatus;
+import com.company.dashboard.util.FileUrlUtil;
 
 public class InternshipDTO {
 
@@ -37,8 +38,8 @@ public class InternshipDTO {
         dto.setRelievingDate(internship.getRelievingDate());
         dto.setInternshipId(internship.getInternshipId());
         dto.setDuration(internship.getDuration());
-        dto.setOfferLetterPath(internship.getOfferLetterPath());
-        dto.setExperienceCertificatePath(internship.getExperienceCertificatePath());
+        dto.setOfferLetterPath(FileUrlUtil.ensurePrefix(internship.getOfferLetterPath()));
+        dto.setExperienceCertificatePath(FileUrlUtil.ensurePrefix(internship.getExperienceCertificatePath()));
         dto.setStatus(internship.getStatus());
         dto.setRejectionReason(internship.getRejectionReason());
         dto.setReviewedAt(internship.getReviewedAt());

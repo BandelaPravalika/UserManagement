@@ -1,0 +1,33 @@
+# Build output
+target/
+
+# IDE & editor files
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.iml
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Maven zip (not needed inside container)
+maven.zip
+maven/
+
+# Metadata
+.metadata/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Upload folder (mounted as volume at runtime)
+uploads/

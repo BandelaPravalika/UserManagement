@@ -10,6 +10,7 @@ import com.company.dashboard.model.EducationType;
 import com.company.dashboard.model.Employee;
 import com.company.dashboard.model.EmployeeForm;
 import com.company.dashboard.model.IdentityProof;
+import com.company.dashboard.util.FileUrlUtil;
 
 public class OnboardingResponseDTO {
 
@@ -67,6 +68,10 @@ public class OnboardingResponseDTO {
     private List<InternshipDTO> internships = new ArrayList<>();
     private List<ExperienceDTO> experiences = new ArrayList<>();
     private List<IdentityProofDTO> identityProofs = new ArrayList<>();
+
+    // ───────── REJECTION INFO ─────────
+    private Boolean onboardingRejected;
+    private List<String> rejectedDocuments = new ArrayList<>();
 
     // ───────── GETTERS & SETTERS ─────────
     public Long getId() { return id; }
@@ -152,6 +157,12 @@ public class OnboardingResponseDTO {
     public List<String> getCertificationPaths() { return certificationPaths; }
     public void setCertificationPaths(List<String> certificationPaths) { this.certificationPaths = certificationPaths; }
 
+    public Boolean getOnboardingRejected() { return onboardingRejected; }
+    public void setOnboardingRejected(Boolean onboardingRejected) { this.onboardingRejected = onboardingRejected; }
+
+    public List<String> getRejectedDocuments() { return rejectedDocuments; }
+    public void setRejectedDocuments(List<String> rejectedDocuments) { this.rejectedDocuments = rejectedDocuments; }
+
     // ─────────────────────────────────────────────
     // FROM ENTITY MAPPING
     // ─────────────────────────────────────────────
@@ -170,6 +181,10 @@ public class OnboardingResponseDTO {
         dto.setPermanentAddress(employeeForm.getPermanentAddress());
         dto.setPresentAddress(employeeForm.getPresentAddress());
 
+        // ───────── REJECTION INFO ─────────
+        dto.setOnboardingRejected(employee.getOnboardingRejected());
+        dto.setRejectedDocuments(new ArrayList<>());
+
         // ───────── FAMILY & EMERGENCY ─────────
         dto.setFathersName(employeeForm.getFatherName());
         dto.setFathersPhone(employeeForm.getFatherPhone());
@@ -182,7 +197,7 @@ public class OnboardingResponseDTO {
         // ───────── BANK DETAILS ─────────
         if (employeeForm.getBankDetails() != null) {
             dto.setBankDetails(BankDetailsDTO.fromEntity(employeeForm.getBankDetails()));
-            dto.setPassbookPath(employeeForm.getBankDetails().getDocumentFilePath());
+            dto.setPassbookPath(FileUrlUtil.ensurePrefix(employeeForm.getBankDetails().getDocumentFilePath()));
         }
 
         // ───────── IDENTITY PROOFS ─────────
@@ -194,11 +209,11 @@ public class OnboardingResponseDTO {
             dto.setIdentityProofCount(identityDTOs.size());
 
             IdentityProof first = employeeForm.getIdentityProofs().get(0);
-            dto.setPanPath(first.getPanFilePath());
-            dto.setAadharPath(first.getAadhaarFilePath());
-            dto.setPassportPath(first.getPassportFilePath());
-            dto.setVoterPath(first.getVoterIdFilePath());
-            dto.setPhotoPath(first.getPhotoFilePath());
+            dto.setPanPath(FileUrlUtil.ensurePrefix(first.getPanFilePath()));
+            dto.setAadharPath(FileUrlUtil.ensurePrefix(first.getAadhaarFilePath()));
+            dto.setPassportPath(FileUrlUtil.ensurePrefix(first.getPassportFilePath()));
+            dto.setVoterPath(FileUrlUtil.ensurePrefix(first.getVoterIdFilePath()));
+            dto.setPhotoPath(FileUrlUtil.ensurePrefix(first.getPhotoFilePath()));
             dto.setPanNumber(first.getPanNumber());
             dto.setAadharNumber(first.getAadhaarNumber());
         }
@@ -212,14 +227,14 @@ public class OnboardingResponseDTO {
 
             for (Education edu : employeeForm.getEducations()) {
                 if (edu.getEducationType() == EducationType.SSC) {
-                    dto.setSscCertificatePath(edu.getCertificateFilePath() != null ? edu.getCertificateFilePath() : "");
-                    dto.setSscMarksPath(edu.getMarksMemoFilePath() != null ? edu.getMarksMemoFilePath() : "");
+                    dto.setSscCertificatePath(FileUrlUtil.ensurePrefix(edu.getCertificateFilePath()));
+                    dto.setSscMarksPath(FileUrlUtil.ensurePrefix(edu.getMarksMemoFilePath()));
                 } else if (edu.getEducationType() == EducationType.INTERMEDIATE) {
-                    dto.setInterCertificatePath(edu.getCertificateFilePath() != null ? edu.getCertificateFilePath() : "");
+                    dto.setInterCertificatePath(FileUrlUtil.ensurePrefix(edu.getCertificateFilePath()));
                 } else if (edu.getEducationType() == EducationType.GRADUATION) {
-                    if (edu.getCertificateFilePath() != null) dto.getGradCertificatePaths().add(edu.getCertificateFilePath());
+                    if (edu.getCertificateFilePath() != null) dto.getGradCertificatePaths().add(FileUrlUtil.ensurePrefix(edu.getCertificateFilePath()));
                 } else if (edu.getEducationType() == EducationType.POST_GRADUATION) {
-                    if (edu.getCertificateFilePath() != null) dto.getPostGradCertificatePaths().add(edu.getCertificateFilePath());
+                    if (edu.getCertificateFilePath() != null) dto.getPostGradCertificatePaths().add(FileUrlUtil.ensurePrefix(edu.getCertificateFilePath()));
                 }
             }
         }
@@ -231,7 +246,7 @@ public class OnboardingResponseDTO {
                     .collect(Collectors.toList()));
             dto.setCertificationCount(employeeForm.getCertifications().size());
             employeeForm.getCertifications().forEach(cert -> {
-                if (cert.getCertificateFilePath() != null) dto.getCertificationPaths().add(cert.getCertificateFilePath());
+                if (cert.getCertificateFilePath() != null) dto.getCertificationPaths().add(FileUrlUtil.ensurePrefix(cert.getCertificateFilePath()));
             });
         }
 

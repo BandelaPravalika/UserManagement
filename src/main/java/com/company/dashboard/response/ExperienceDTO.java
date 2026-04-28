@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.company.dashboard.model.Experience;
 import com.company.dashboard.model.ProofStatus;
+import com.company.dashboard.util.FileUrlUtil;
 
 public class ExperienceDTO {
 
@@ -26,10 +27,10 @@ public class ExperienceDTO {
         dto.setId(experience.getId());
         dto.setCompanyName(experience.getCompanyName());
         dto.setYearsOfExperience(experience.getYearsOfExperience());
-        dto.setOfferLetterPath(experience.getOfferLetterPath());
-        dto.setRelievingLetterPath(experience.getRelievingLetterPath());
-        dto.setPayslipsPath(experience.getPayslipsPath());
-        dto.setExperienceCertificatePath(experience.getExperienceCertificatePath());
+        dto.setOfferLetterPath(FileUrlUtil.ensurePrefix(experience.getOfferLetterPath()));
+        dto.setRelievingLetterPath(FileUrlUtil.ensurePrefix(experience.getRelievingLetterPath()));
+        dto.setPayslipsPath(FileUrlUtil.ensurePrefix(experience.getPayslipsPath()));
+        dto.setExperienceCertificatePath(FileUrlUtil.ensurePrefix(experience.getExperienceCertificatePath()));
         dto.setStatus(experience.getStatus());
         dto.setRejectionReason(experience.getRejectionReason());
         dto.setReviewedAt(experience.getReviewedAt());
