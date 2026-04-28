@@ -67,8 +67,10 @@ public class OnboardingController {
                 });
             }
 
-            // Upload each file to Cloudinary; savedPath is now a full https:// URL
-            files.forEach((key, file) -> mapFileToDTO(dto, key, file, employeeId, employee.getFullName()));
+            // Upload each file to Cloudinary in PARALLEL to prevent 504 timeouts
+            files.entrySet().parallelStream().forEach(entry -> {
+                mapFileToDTO(dto, entry.getKey(), entry.getValue(), employeeId, employee.getFullName());
+            });
 
             // ───────── SUBMIT TO SERVICE (Integrated Transaction) ─────────
             OnboardingResponseDTO result = onboardingService.submitOnboarding(dto, employeeId, files, token);
@@ -111,32 +113,48 @@ public class OnboardingController {
         System.out.println("✅ Cloudinary upload [" + file.getOriginalFilename() + "] key=[" + key + "] url=" + savedPath);
 
         if (k.contains("bank")) {
-            if (dto.getBankDetails() == null) dto.setBankDetails(new BankDetailsDTO());
+            synchronized (dto) {
+                if (dto.getBankDetails() == null) dto.setBankDetails(new BankDetailsDTO());
+            }
             dto.getBankDetails().setDocumentFilePath(savedPath);
         } else if (k.contains("photo")) {
-            if (dto.getPhotoProof() == null) dto.setPhotoProof(new IdentityProofDTO());
+            synchronized (dto) {
+                if (dto.getPhotoProof() == null) dto.setPhotoProof(new IdentityProofDTO());
+            }
             dto.getPhotoProof().setPhotoFilePath(savedPath);
         } else if (k.contains("pan")) {
-            if (dto.getPanProof() == null) dto.setPanProof(new IdentityProofDTO());
+            synchronized (dto) {
+                if (dto.getPanProof() == null) dto.setPanProof(new IdentityProofDTO());
+            }
             dto.getPanProof().setPanFilePath(savedPath);
         } else if (k.contains("aadhaar") || k.contains("aadhar")) {
-            if (dto.getAadharProof() == null) dto.setAadharProof(new IdentityProofDTO());
+            synchronized (dto) {
+                if (dto.getAadharProof() == null) dto.setAadharProof(new IdentityProofDTO());
+            }
             dto.getAadharProof().setAadhaarFilePath(savedPath);
         } else if (k.contains("voter")) {
-            if (dto.getVoterProof() == null) dto.setVoterProof(new IdentityProofDTO());
+            synchronized (dto) {
+                if (dto.getVoterProof() == null) dto.setVoterProof(new IdentityProofDTO());
+            }
             dto.getVoterProof().setVoterIdFilePath(savedPath);
         } else if (k.contains("passport")) {
-            if (dto.getPassportProof() == null) dto.setPassportProof(new IdentityProofDTO());
+            synchronized (dto) {
+                if (dto.getPassportProof() == null) dto.setPassportProof(new IdentityProofDTO());
+            }
             dto.getPassportProof().setPassportFilePath(savedPath);
         } else if (k.contains("ssc")) {
-            if (dto.getSsc() == null) dto.setSsc(new EducationDTO());
+            synchronized (dto) {
+                if (dto.getSsc() == null) dto.setSsc(new EducationDTO());
+            }
             dto.getSsc().setCertificateFilePath(savedPath);
         } else if (k.contains("internship")) {
             mapIndexedWorkFiles(dto, k, savedPath, true);
         } else if (k.contains("experience")) {
             mapIndexedWorkFiles(dto, k, savedPath, false);
         } else if (k.contains("inter")) {
-            if (dto.getIntermediate() == null) dto.setIntermediate(new EducationDTO());
+            synchronized (dto) {
+                if (dto.getIntermediate() == null) dto.setIntermediate(new EducationDTO());
+            }
             dto.getIntermediate().setCertificateFilePath(savedPath);
         } else {
             mapIndexedEducationFiles(dto, k, savedPath);
