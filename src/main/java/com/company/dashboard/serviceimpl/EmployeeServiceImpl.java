@@ -47,7 +47,8 @@ public class EmployeeServiceImpl implements EmployeeService {
     public Employee createEmployee(Employee employee) {
 
         // Default state: ONBOARDING, empId = null, activatedAt = null
-        // empId will only be assigned 1 minute AFTER the employee is explicitly activated
+        // empId will only be assigned 1 minute AFTER the employee is explicitly
+        // activated
         employee.setStatus(EmployeeStatus.ONBOARDING);
         employee.setEmpId(null);
         employee.setActivatedAt(null);
@@ -60,8 +61,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         mailService.sendOnboardingMail(
                 saved.getEmail(),
                 saved.getFullName(),
-                token
-        );
+                token);
 
         return saved;
     }
@@ -131,8 +131,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                     break;
                 case "activatedAt":
                     existing.setActivatedAt(
-                            value != null ? LocalDate.parse((String) value).atStartOfDay() : null
-                    );
+                            value != null ? LocalDate.parse((String) value).atStartOfDay() : null);
                     break;
             }
         });
@@ -163,7 +162,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Transactional(readOnly = true)
     public List<Employee> getAllEmployees() {
         return employeeRepository.findAll();
-    } 
+    }
 
     // ---------------- DEACTIVATE ----------------
     @Override
@@ -189,7 +188,8 @@ public class EmployeeServiceImpl implements EmployeeService {
         LocalDateTime now = LocalDateTime.now();
         employee.setStatus(EmployeeStatus.ACTIVE);
         employee.setActivatedAt(now);
-        // empId remains null — it will be auto-set by EmployeeCodeScheduler exactly 1 min after activatedAt
+        // empId remains null — it will be auto-set by EmployeeCodeScheduler exactly 1
+        // min after activatedAt
         Employee saved = employeeRepository.save(employee);
 
         System.out.println("[EmployeeServiceImpl] Employee ACTIVATED: " + saved.getFullName()
@@ -233,7 +233,6 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
         generateEmployeeCodeAfterDelay(employeeId);
     }
-
 
     @Override
     public String verifyToken(String token) {

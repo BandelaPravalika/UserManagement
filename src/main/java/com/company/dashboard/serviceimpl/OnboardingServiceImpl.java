@@ -96,13 +96,29 @@ public class OnboardingServiceImpl implements OnboardingService {
         EmployeeForm form = employeeFormRepository.findByEmployee_Id(employeeId)
                 .orElse(new EmployeeForm());
 
-        // If updating, clear existing lists to avoid duplicates (orphanRemoval will handle deletion)
+        // If updating, clear existing lists to avoid duplicates (orphanRemoval will
+        // handle deletion)
         if (form.getId() != null) {
-            if (form.getEducations() != null) form.getEducations().clear(); else form.setEducations(new ArrayList<>());
-            if (form.getInternships() != null) form.getInternships().clear(); else form.setInternships(new ArrayList<>());
-            if (form.getExperiences() != null) form.getExperiences().clear(); else form.setExperiences(new ArrayList<>());
-            if (form.getCertifications() != null) form.getCertifications().clear(); else form.setCertifications(new ArrayList<>());
-            if (form.getIdentityProofs() != null) form.getIdentityProofs().clear(); else form.setIdentityProofs(new ArrayList<>());
+            if (form.getEducations() != null)
+                form.getEducations().clear();
+            else
+                form.setEducations(new ArrayList<>());
+            if (form.getInternships() != null)
+                form.getInternships().clear();
+            else
+                form.setInternships(new ArrayList<>());
+            if (form.getExperiences() != null)
+                form.getExperiences().clear();
+            else
+                form.setExperiences(new ArrayList<>());
+            if (form.getCertifications() != null)
+                form.getCertifications().clear();
+            else
+                form.setCertifications(new ArrayList<>());
+            if (form.getIdentityProofs() != null)
+                form.getIdentityProofs().clear();
+            else
+                form.setIdentityProofs(new ArrayList<>());
         } else {
             // Initialize lists for new form
             form.setEducations(new ArrayList<>());
@@ -111,7 +127,7 @@ public class OnboardingServiceImpl implements OnboardingService {
             form.setCertifications(new ArrayList<>());
             form.setIdentityProofs(new ArrayList<>());
         }
-        
+
         form.setEmployee(employee);
 
         // BASIC DETAILS
@@ -280,7 +296,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         // FINALIZING SUBMISSION (Integrated inside the transaction)
         employee.setStatus(Employee.EmployeeStatus.UNDER_REVIEW);
         employeeRepository.save(employee);
-        
+
         // Mark token as used
         if (token != null) {
             onboardingTokenService.markUsed(token);
@@ -325,7 +341,7 @@ public class OnboardingServiceImpl implements OnboardingService {
 
         employee.setReviewRemarks(remarks);
         employee.setReviewedAt(LocalDateTime.now());
-        
+
         List<Map<String, String>> responseList = new ArrayList<>();
 
         if ("APPROVED".equalsIgnoreCase(status)) {
@@ -352,19 +368,20 @@ public class OnboardingServiceImpl implements OnboardingService {
             List<String> rejectedDocs = employee.getRejectedDocuments();
 
             if (rejectedDocs == null || rejectedDocs.isEmpty()) {
-                throw new RuntimeException("At least one document must be rejected before performing an overall reject.");
+                throw new RuntimeException(
+                        "At least one document must be rejected before performing an overall reject.");
             }
 
             // Update: EMPLOYEE_STATUS = ONBOARDING; (Per user requirement)
             employee.setStatus(Employee.EmployeeStatus.ONBOARDING);
             employee.setOnboardingRejected(true);
 
-            // Fetch all rejected images: image_name, reject_reason 
+            // Fetch all rejected images: image_name, reject_reason
             StringBuilder formattedList = new StringBuilder();
             for (int i = 0; i < rejectedDocs.size(); i++) {
                 String doc = rejectedDocs.get(i);
                 formattedList.append(i + 1).append(". ").append(doc).append("\n");
-                
+
                 String[] parts = doc.split(" - ", 2);
                 Map<String, String> map = new java.util.HashMap<>();
                 map.put("image_name", parts[0]);
@@ -395,7 +412,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         }
 
         employeeRepository.save(employee);
-        
+
         return responseList;
     }
 
@@ -413,7 +430,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 .orElseThrow(() -> new RuntimeException("Onboarding form not found for this employee"));
 
         String documentName = mapEntityTypeToDocument(entityType);
-        
+
         // 1. Update the specific entity record
         updateSubEntityStatus(form, entityType, entityId, ProofStatus.REJECTED, remarks);
 
@@ -422,7 +439,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         if (rejectedDocs == null) {
             rejectedDocs = new ArrayList<>();
         }
-        
+
         String entry = documentName + (remarks != null ? " - " + remarks : "");
         if (!rejectedDocs.contains(entry)) {
             rejectedDocs.add(entry);
@@ -433,8 +450,9 @@ public class OnboardingServiceImpl implements OnboardingService {
     }
 
     private void updateSubEntityStatus(EmployeeForm form, String type, Long id, ProofStatus status, String remarks) {
-        if (type == null) return;
-        
+        if (type == null)
+            return;
+
         switch (type.toLowerCase()) {
             case "bank":
                 if (form.getBankDetails() != null) {
@@ -452,13 +470,13 @@ public class OnboardingServiceImpl implements OnboardingService {
             case "identity":
                 if (form.getIdentityProofs() != null) {
                     form.getIdentityProofs().stream()
-                        .filter(p -> Objects.equals(p.getId(), id))
-                        .findFirst()
-                        .ifPresent(p -> {
-                            p.setStatus(status);
-                            p.setRejectionReason(remarks);
-                            p.setReviewedAt(LocalDateTime.now());
-                        });
+                            .filter(p -> Objects.equals(p.getId(), id))
+                            .findFirst()
+                            .ifPresent(p -> {
+                                p.setStatus(status);
+                                p.setRejectionReason(remarks);
+                                p.setReviewedAt(LocalDateTime.now());
+                            });
                 }
                 break;
             case "education":
@@ -468,49 +486,49 @@ public class OnboardingServiceImpl implements OnboardingService {
             case "postgraduation":
                 if (form.getEducations() != null) {
                     form.getEducations().stream()
-                        .filter(e -> Objects.equals(e.getId(), id))
-                        .findFirst()
-                        .ifPresent(e -> {
-                            e.setStatus(status);
-                            e.setRejectionReason(remarks);
-                            e.setReviewedAt(LocalDateTime.now());
-                        });
+                            .filter(e -> Objects.equals(e.getId(), id))
+                            .findFirst()
+                            .ifPresent(e -> {
+                                e.setStatus(status);
+                                e.setRejectionReason(remarks);
+                                e.setReviewedAt(LocalDateTime.now());
+                            });
                 }
                 break;
             case "certification":
                 if (form.getCertifications() != null) {
                     form.getCertifications().stream()
-                        .filter(c -> Objects.equals(c.getId(), id))
-                        .findFirst()
-                        .ifPresent(c -> {
-                            c.setStatus(status);
-                            c.setRejectionReason(remarks);
-                            c.setReviewedAt(LocalDateTime.now());
-                        });
+                            .filter(c -> Objects.equals(c.getId(), id))
+                            .findFirst()
+                            .ifPresent(c -> {
+                                c.setStatus(status);
+                                c.setRejectionReason(remarks);
+                                c.setReviewedAt(LocalDateTime.now());
+                            });
                 }
                 break;
             case "internship":
                 if (form.getInternships() != null) {
                     form.getInternships().stream()
-                        .filter(i -> Objects.equals(i.getId(), id))
-                        .findFirst()
-                        .ifPresent(i -> {
-                            i.setStatus(status);
-                            i.setRejectionReason(remarks);
-                            i.setReviewedAt(LocalDateTime.now());
-                        });
+                            .filter(i -> Objects.equals(i.getId(), id))
+                            .findFirst()
+                            .ifPresent(i -> {
+                                i.setStatus(status);
+                                i.setRejectionReason(remarks);
+                                i.setReviewedAt(LocalDateTime.now());
+                            });
                 }
                 break;
             case "experience":
                 if (form.getExperiences() != null) {
                     form.getExperiences().stream()
-                        .filter(ex -> Objects.equals(ex.getId(), id))
-                        .findFirst()
-                        .ifPresent(ex -> {
-                            ex.setStatus(status);
-                            ex.setRejectionReason(remarks);
-                            ex.setReviewedAt(LocalDateTime.now());
-                        });
+                            .filter(ex -> Objects.equals(ex.getId(), id))
+                            .findFirst()
+                            .ifPresent(ex -> {
+                                ex.setStatus(status);
+                                ex.setRejectionReason(remarks);
+                                ex.setReviewedAt(LocalDateTime.now());
+                            });
                 }
                 break;
         }
