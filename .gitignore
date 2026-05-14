@@ -17,6 +17,7 @@ maven/
 
 # Logs & temp
 *.log
+app_log.txt
 
 # OS files
 .DS_Store
@@ -24,4 +25,7 @@ Thumbs.db
 
 # Uploads (if runtime generated)
 uploads/
+
+# Environment secrets
 .env
+application-local.properties
